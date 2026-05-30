@@ -1,0 +1,7 @@
+interface:
+  display_name: "Ping Me"
+  short_description: "Watch-capable completion pings"
+  default_prompt: "Use $ping-me to notify me when the current task finishes."
+
+policy:
+  allow_implicit_invocation: true
