@@ -153,7 +153,7 @@ Useful settings:
 PING_ME_TRANSPORT=ntfy
 PING_ME_NTFY_TOPIC=your-private-random-topic
 PING_ME_CAFFEINATE_ARGS=-dims
-PING_ME_CAFFEINATE_TIMEOUT_SECONDS=14400
+PING_ME_CAFFEINATE_TIMEOUT_SECONDS=90000
 PING_ME_STATE_DIR=$HOME/.local/state/ping-me
 PING_ME_AGENT_NAME=Codex
 PING_ME_CODEX_NOTIFY_HOOK=0
@@ -163,4 +163,4 @@ The Codex skill and Claude command call the notifier with `--force`, so explicit
 
 ## Notes
 
-`caffeinate` prevents normal macOS sleep while the task is running. It may not prevent sleep from closing the laptop lid, battery exhaustion, or forced shutdown. The background guard has a default 4 hour timeout so an interrupted agent does not keep the Mac awake indefinitely.
+`caffeinate` prevents normal macOS sleep while the task is running. It may not prevent sleep from closing the laptop lid, battery exhaustion, or forced shutdown. The background guard has a default 25 hour timeout so an interrupted agent does not keep the Mac awake indefinitely.
