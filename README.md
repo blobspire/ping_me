@@ -56,6 +56,8 @@ Notification titles:
 - `Codex failure`
 - `Codex blocked`
 
+The Codex skill is written to trigger only for direct completion-ping requests like `ping me`, `notify me when done`, or `run tests, then ping me`. It should not trigger when pinging or notifications are part of the app behavior you are describing.
+
 ## Claude Code Use
 
 During a Claude Code task, run:

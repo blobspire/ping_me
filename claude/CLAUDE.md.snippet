@@ -1,12 +1,14 @@
 <!-- ping-me:start -->
 ## ping-me completion notifications
 
-When I say "ping me", "notify me when done", "send me a watch notification", or similar in Claude Code:
+When I directly ask Claude Code to notify me after Claude's current task finishes, such as "ping me", "notify me when done", "run tests, then ping me", or similar:
 
 1. Immediately run `"$HOME/.local/share/ping-me/scripts/caffeinate_guard.sh" start`.
 2. Finish the current task.
 3. At the end, run `"$HOME/.local/bin/ping-me" --force --caffeinate-stop --agent Claude --status success --message "The requested task finished."`.
 4. Use `--status failure` if the task failed and `--status blocked` if the task cannot continue without user input or an external change.
 5. Keep the notification message short and do not include secrets, command output, file contents, tokens, or large logs.
+
+Do not treat notification language as a ping-me request when it is part of product requirements, app behavior, code, documentation, tests, or examples. For example, do not trigger ping-me for: "I'm building a walkie talkie app and I want it to ping me when I lose connection."
 
 <!-- ping-me:end -->

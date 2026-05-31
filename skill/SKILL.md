@@ -1,6 +1,6 @@
 ---
 name: ping-me
-description: Use when the user says "ping me", "notify me when done", "send me a watch notification", or asks for an Apple Watch-capable completion alert for the current Codex task, command, or long-running process. Keep the Mac awake with caffeinate while the task runs, then send one one-shot notification because the user explicitly requested it.
+description: Use only when the user directly asks Codex to notify them when the current Codex task, command, or long-running process finishes, such as a standalone "ping me", "notify me when done", or a separate imperative clause like "run tests, then ping me". Do not use when pinging, alerts, notifications, connectivity, or "ping me" are part of the app/product behavior being discussed or implemented.
 metadata:
   short-description: Explicit completion pings for long tasks
 ---
@@ -8,6 +8,21 @@ metadata:
 # Ping Me
 
 Use this skill as a one-shot completion ping for the current task only. Do not notify for future unrelated tasks unless the user asks again.
+
+## Trigger Guard
+
+Use this skill only when the user is directly instructing Codex to send a completion notification for Codex's current work.
+
+Valid examples:
+
+- `ping me`
+- `notify me when done`
+- `run the tests, then ping me`
+- `please send me a watch notification after this finishes`
+
+Do not use this skill when notification language is part of the user's product requirements, code behavior, documentation, tests, or examples. For example, do not trigger for: `I'm building a walkie talkie app and I want it to ping me when I lose connection.`
+
+If the intent is ambiguous, do not use the skill.
 
 ## Workflow
 
