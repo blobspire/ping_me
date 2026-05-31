@@ -26,26 +26,33 @@ If the intent is ambiguous, do not use the skill.
 
 ## Workflow
 
-1. As soon as the ping request is received, start the caffeinate guard:
+1. As soon as the ping request is received, arm the request:
 
 ```bash
-"$HOME/.codex/skills/ping-me/scripts/caffeinate_guard.sh" start
+"$HOME/.codex/skills/ping-me/scripts/ping_me_request.sh" arm \
+  --agent Codex \
+  --message "The requested task finished."
 ```
 
-2. If a command or process for the current task is still running, wait or poll until it exits.
-3. If the user asked before the long-running work starts, remember the pending ping and run it after the relevant task completes.
-4. Run the bundled notification script once and stop the caffeinate guard:
+2. Finish the user's actual task. Do not let the notification workflow replace or shorten the requested work.
+3. If the arm command printed `completion=manual`, complete the armed request at the end:
 
 ```bash
-"$HOME/.codex/skills/ping-me/scripts/ping_me.sh" \
-  --force \
-  --caffeinate-stop \
+"$HOME/.codex/skills/ping-me/scripts/ping_me_request.sh" complete \
   --agent Codex \
-  --message "The requested task finished." \
   --status success
 ```
 
-Use `--force` for this skill because the user explicitly asked to be pinged. Use `--status failure` when the task failed and `--status blocked` when Codex cannot continue without user input or an external change. Keep notification text short and do not include secrets, command output, file contents, tokens, or large logs.
+If the arm command printed `completion=hook`, do not send a manual notification; the Codex notify hook owns completion. If the task fails or becomes blocked in hook mode, mark the armed request before ending:
+
+```bash
+"$HOME/.codex/skills/ping-me/scripts/ping_me_request.sh" mark \
+  --agent Codex \
+  --status failure \
+  --message "The requested task failed."
+```
+
+Use `--status failure` when the task failed and `--status blocked` when Codex cannot continue without user input or an external change. Keep notification text short and do not include secrets, command output, file contents, tokens, or large logs.
 
 Default notification titles by status:
 
@@ -55,7 +62,7 @@ Default notification titles by status:
 
 Do not pass `--title` unless the user explicitly asks for custom title text.
 
-Always stop the caffeinate guard when the task succeeds, fails, or becomes blocked.
+The request script starts the caffeinate guard while armed and stops it after the final armed request completes.
 
 For a single long shell command, the wrapper can manage caffeinate and notification in one process:
 
@@ -97,7 +104,7 @@ The macOS fallback is useful on the laptop but is not a reliable Apple Watch not
 Dry-run without sending:
 
 ```bash
-"$HOME/.codex/skills/ping-me/scripts/ping_me.sh" --force --agent Codex --dry-run --message "Test ping"
+"$HOME/.codex/skills/ping-me/scripts/ping_me_request.sh" arm --agent Codex --dry-run
 ```
 
 Wrap an arbitrary command and preserve its exit status:
@@ -106,9 +113,8 @@ Wrap an arbitrary command and preserve its exit status:
 "$HOME/.codex/skills/ping-me/scripts/ping_me.sh" --force --caffeinate --agent Codex -- make test
 ```
 
-Wait for a known PID:
+Complete a dry-run armed request in tests:
 
 ```bash
-"$HOME/.codex/skills/ping-me/scripts/caffeinate_guard.sh" start
-"$HOME/.codex/skills/ping-me/scripts/ping_me.sh" --force --caffeinate-stop --agent Codex --pid 12345 --message "Process 12345 finished"
+"$HOME/.codex/skills/ping-me/scripts/ping_me_request.sh" complete --agent Codex --dry-run
 ```

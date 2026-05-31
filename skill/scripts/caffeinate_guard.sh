@@ -1,9 +1,23 @@
 #!/usr/bin/env bash
 set -u
 
-STATE_DIR="${PING_ME_STATE_DIR:-$HOME/.codex/tmp/ping-me}"
+CONFIG_FILE="${PING_ME_CONFIG:-}"
+if [ -z "$CONFIG_FILE" ]; then
+  if [ -f "$HOME/.config/ping-me/ping-me.env" ]; then
+    CONFIG_FILE="$HOME/.config/ping-me/ping-me.env"
+  elif [ -f "$HOME/.codex/ping-me.env" ]; then
+    CONFIG_FILE="$HOME/.codex/ping-me.env"
+  fi
+fi
+if [ -n "$CONFIG_FILE" ] && [ -f "$CONFIG_FILE" ]; then
+  # shellcheck disable=SC1090
+  . "$CONFIG_FILE"
+fi
+
+STATE_DIR="${PING_ME_STATE_DIR:-$HOME/.local/state/ping-me}"
 PID_FILE="${PING_ME_CAFFEINATE_PID_FILE:-$STATE_DIR/caffeinate.pid}"
 CAFFEINATE_ARGS="${PING_ME_CAFFEINATE_ARGS:--dims}"
+CAFFEINATE_TIMEOUT_SECONDS="${PING_ME_CAFFEINATE_TIMEOUT_SECONDS:-14400}"
 
 usage() {
   cat <<'USAGE'
@@ -45,6 +59,16 @@ start_guard() {
   fi
 
   read -r -a caffeinate_args <<< "$CAFFEINATE_ARGS"
+  case "$CAFFEINATE_TIMEOUT_SECONDS" in
+    ''|0) ;;
+    *[!0-9]*)
+      printf 'ping-me: PING_ME_CAFFEINATE_TIMEOUT_SECONDS must be a non-negative integer.\n' >&2
+      return 64
+      ;;
+    *)
+      caffeinate_args+=(-t "$CAFFEINATE_TIMEOUT_SECONDS")
+      ;;
+  esac
   /usr/bin/nohup /usr/bin/caffeinate "${caffeinate_args[@]}" >/dev/null 2>&1 &
   pid=$!
   printf '%s\n' "$pid" > "$PID_FILE"

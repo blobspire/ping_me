@@ -5,10 +5,12 @@ argument-hint: [optional task/reminder]
 
 Use ping-me as a one-shot completion ping for the current Claude Code task only.
 
-Immediately start the caffeinate guard:
+Immediately arm ping-me:
 
 ```bash
-"$HOME/.local/share/ping-me/scripts/caffeinate_guard.sh" start
+"$HOME/.local/share/ping-me/scripts/ping_me_request.sh" arm \
+  --agent Claude \
+  --message "The requested task finished."
 ```
 
 If `$ARGUMENTS` describes work to do, do that work. If no arguments were provided, apply this to the current task already underway in the conversation.
@@ -16,12 +18,9 @@ If `$ARGUMENTS` describes work to do, do that work. If no arguments were provide
 When the task succeeds, run:
 
 ```bash
-"$HOME/.local/bin/ping-me" \
-  --force \
-  --caffeinate-stop \
+"$HOME/.local/share/ping-me/scripts/ping_me_request.sh" complete \
   --agent Claude \
-  --status success \
-  --message "The requested task finished."
+  --status success
 ```
 
 If the task fails, use `--status failure` and a short message describing the failed step.

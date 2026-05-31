@@ -1,6 +1,6 @@
 # ping_me
 
-`ping_me` adds completion pings for long-running agent CLI tasks on macOS. It supports Codex CLI through a Codex skill and Claude Code through a custom slash command. It keeps the Mac awake with `caffeinate` while the task runs, then sends one completion notification when the task succeeds, fails, or becomes blocked.
+`ping_me` adds completion pings for long-running agent CLI tasks on macOS. It supports Codex CLI through a Codex skill and Claude Code through a custom slash command. It arms a small local request state, keeps the Mac awake with `caffeinate` while the task runs, then sends one completion notification when the task succeeds, fails, or becomes blocked.
 
 It is designed for Apple Watch delivery through ntfy, with Pushover, iMessage, and macOS local notification fallbacks also supported.
 
@@ -48,7 +48,7 @@ During a Codex task, say:
 ping me
 ```
 
-The skill starts a background `caffeinate` guard immediately. When the current task finishes, it sends a notification and stops the guard.
+The skill arms a local ping request and starts a background `caffeinate` guard immediately. When the current task finishes, it sends a notification and stops the guard.
 
 Notification titles:
 
@@ -57,6 +57,8 @@ Notification titles:
 - `Codex blocked`
 
 The Codex skill is written to trigger only for direct completion-ping requests like `ping me`, `notify me when done`, or `run tests, then ping me`. It should not trigger when pinging or notifications are part of the app behavior you are describing.
+
+For the lowest agent-attention cost in complex sessions, use the optional hook-backed mode below. In that mode, the skill only arms the request; Codex's native notify command completes it after the turn.
 
 ## Claude Code Use
 
@@ -72,7 +74,7 @@ You can also pass a task reminder:
 /ping-me run the test suite and tell me when it finishes
 ```
 
-The command starts the same background `caffeinate` guard. When the task finishes, Claude sends one notification and stops the guard.
+The command arms the same background `caffeinate` guard. When the task finishes, Claude sends one notification and stops the guard.
 
 Notification titles:
 
@@ -101,6 +103,42 @@ Start and stop the caffeinate guard directly:
 ~/.local/share/ping-me/scripts/caffeinate_guard.sh stop
 ```
 
+Arm and complete the request-state flow directly:
+
+```bash
+~/.local/share/ping-me/scripts/ping_me_request.sh arm --agent Codex
+~/.local/share/ping-me/scripts/ping_me_request.sh mark --agent Codex --status blocked --message "Waiting on user input."
+~/.local/share/ping-me/scripts/ping_me_request.sh complete --agent Codex --status success
+```
+
+## Optional Codex Hook Mode
+
+Codex supports a native `notify` command in `~/.codex/config.toml`. To make completion deterministic, route that notify command through the wrapper and set `PING_ME_CODEX_NOTIFY_HOOK=1` in `~/.config/ping-me/ping-me.env`.
+
+If you already have:
+
+```toml
+notify = ["/path/to/existing-notify", "arg1"]
+```
+
+change it to:
+
+```toml
+notify = [
+  "/Users/YOU/.local/share/ping-me/scripts/codex_notify_wrapper.sh",
+  "/path/to/existing-notify",
+  "arg1",
+]
+```
+
+If you do not have an existing notify command:
+
+```toml
+notify = ["/Users/YOU/.local/share/ping-me/scripts/codex_notify_wrapper.sh"]
+```
+
+The wrapper is gated by the armed request state, so it does nothing on ordinary turns. It completes at most one pending Codex ping after a turn and leaves existing notify behavior intact when you pass the previous notify command as wrapper arguments. If a hook-backed task fails or becomes blocked, the skill records that status with `ping_me_request.sh mark` before the turn ends so the hook sends `Codex failure` or `Codex blocked`.
+
 ## Configure
 
 Edit:
@@ -115,11 +153,14 @@ Useful settings:
 PING_ME_TRANSPORT=ntfy
 PING_ME_NTFY_TOPIC=your-private-random-topic
 PING_ME_CAFFEINATE_ARGS=-dims
+PING_ME_CAFFEINATE_TIMEOUT_SECONDS=14400
+PING_ME_STATE_DIR=$HOME/.local/state/ping-me
 PING_ME_AGENT_NAME=Codex
+PING_ME_CODEX_NOTIFY_HOOK=0
 ```
 
 The Codex skill and Claude command call the notifier with `--force`, so explicit ping requests notify even if you were recently active on the laptop. The idle threshold only applies to direct/manual script use without `--force`.
 
 ## Notes
 
-`caffeinate` prevents normal macOS sleep while the task is running. It may not prevent sleep from closing the laptop lid, battery exhaustion, or forced shutdown.
+`caffeinate` prevents normal macOS sleep while the task is running. It may not prevent sleep from closing the laptop lid, battery exhaustion, or forced shutdown. The background guard has a default 4 hour timeout so an interrupted agent does not keep the Mac awake indefinitely.

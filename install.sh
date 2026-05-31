@@ -74,8 +74,8 @@ random_topic() {
 
 install_scripts() {
   mkdir -p "$SCRIPT_DEST" "$HOME/.local/bin"
-  cp "$SCRIPT_SRC/ping_me.sh" "$SCRIPT_SRC/caffeinate_guard.sh" "$SCRIPT_DEST/"
-  chmod +x "$SCRIPT_DEST/ping_me.sh" "$SCRIPT_DEST/caffeinate_guard.sh"
+  cp "$SCRIPT_SRC"/*.sh "$SCRIPT_DEST/"
+  chmod +x "$SCRIPT_DEST"/*.sh
 
   cat > "$BIN_DEST" <<'WRAPPER'
 #!/usr/bin/env bash
@@ -88,7 +88,7 @@ install_codex_skill() {
   mkdir -p "$HOME/.codex/skills"
   rm -rf "$SKILL_DEST"
   cp -R "$SKILL_SRC" "$SKILL_DEST"
-  chmod +x "$SKILL_DEST/scripts/ping_me.sh" "$SKILL_DEST/scripts/caffeinate_guard.sh"
+  chmod +x "$SKILL_DEST"/scripts/*.sh
   printf 'Installed Codex skill: %s\n' "$SKILL_DEST"
 }
 
