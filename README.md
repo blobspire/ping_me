@@ -1,6 +1,6 @@
 # ping_me
 
-`ping_me` is a Codex skill for long-running Codex CLI tasks on macOS. Say `ping me`, and Codex will keep the Mac awake with `caffeinate` while it works, then send one completion notification when the task succeeds, fails, or becomes blocked.
+`ping_me` adds completion pings for long-running agent CLI tasks on macOS. It supports Codex CLI through a Codex skill and Claude Code through a custom slash command. It keeps the Mac awake with `caffeinate` while the task runs, then sends one completion notification when the task succeeds, fails, or becomes blocked.
 
 It is designed for Apple Watch delivery through ntfy, with Pushover, iMessage, and macOS local notification fallbacks also supported.
 
@@ -14,16 +14,33 @@ cd ping_me
 
 The installer:
 
-- copies the skill to `~/.codex/skills/ping-me`
-- creates `~/.codex/ping-me.env` if it does not already exist
-- generates a private random ntfy topic
+- copies shared scripts to `~/.local/share/ping-me/scripts`
 - creates a `ping-me` command in `~/.local/bin`
+- copies the skill to `~/.codex/skills/ping-me`
+- copies the Claude Code command to `~/.claude/commands/ping-me.md`
+- creates `~/.config/ping-me/ping-me.env` if it does not already exist
+- generates a private random ntfy topic
 
 Install the ntfy iOS app, then subscribe to the topic URL printed by the installer. Apple Watch notifications follow the iPhone notification settings for the ntfy app.
 
 Keep the ntfy topic private. Anyone who knows an unauthenticated public `ntfy.sh` topic can publish to it or subscribe to it.
 
-## Use
+Install only one integration:
+
+```bash
+./install.sh --codex
+./install.sh --claude
+```
+
+For Claude Code, `/ping-me` works immediately after install. To also make natural language like "ping me" work across Claude Code sessions, run:
+
+```bash
+./install.sh --claude --claude-memory
+```
+
+Claude Code loads user memory when a session starts, so restart Claude Code after adding the optional memory snippet.
+
+## Codex Use
 
 During a Codex task, say:
 
@@ -39,6 +56,28 @@ Notification titles:
 - `Codex failure`
 - `Codex blocked`
 
+## Claude Code Use
+
+During a Claude Code task, run:
+
+```text
+/ping-me
+```
+
+You can also pass a task reminder:
+
+```text
+/ping-me run the test suite and tell me when it finishes
+```
+
+The command starts the same background `caffeinate` guard. When the task finishes, Claude sends one notification and stops the guard.
+
+Notification titles:
+
+- `Claude done`
+- `Claude failure`
+- `Claude blocked`
+
 ## Manual Commands
 
 Dry-run the notifier:
@@ -50,14 +89,14 @@ ping-me --force --dry-run --message "Test ping"
 Wrap a long shell command and preserve its exit status:
 
 ```bash
-ping-me --force --caffeinate -- make test
+ping-me --force --caffeinate --agent Codex -- make test
 ```
 
 Start and stop the caffeinate guard directly:
 
 ```bash
-~/.codex/skills/ping-me/scripts/caffeinate_guard.sh start
-~/.codex/skills/ping-me/scripts/caffeinate_guard.sh stop
+~/.local/share/ping-me/scripts/caffeinate_guard.sh start
+~/.local/share/ping-me/scripts/caffeinate_guard.sh stop
 ```
 
 ## Configure
@@ -65,7 +104,7 @@ Start and stop the caffeinate guard directly:
 Edit:
 
 ```bash
-~/.codex/ping-me.env
+~/.config/ping-me/ping-me.env
 ```
 
 Useful settings:
@@ -74,9 +113,10 @@ Useful settings:
 PING_ME_TRANSPORT=ntfy
 PING_ME_NTFY_TOPIC=your-private-random-topic
 PING_ME_CAFFEINATE_ARGS=-dims
+PING_ME_AGENT_NAME=Codex
 ```
 
-The skill calls the notifier with `--force`, so explicit `ping me` requests notify even if you were recently active on the laptop. The idle threshold only applies to direct/manual script use without `--force`.
+The Codex skill and Claude command call the notifier with `--force`, so explicit ping requests notify even if you were recently active on the laptop. The idle threshold only applies to direct/manual script use without `--force`.
 
 ## Notes
 

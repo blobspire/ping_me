@@ -2,14 +2,25 @@
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${PING_ME_CONFIG:-$HOME/.codex/ping-me.env}"
+CONFIG_FILE="${PING_ME_CONFIG:-}"
+if [ -z "$CONFIG_FILE" ]; then
+  if [ -f "$HOME/.config/ping-me/ping-me.env" ]; then
+    CONFIG_FILE="$HOME/.config/ping-me/ping-me.env"
+  elif [ -f "$HOME/.codex/ping-me.env" ]; then
+    CONFIG_FILE="$HOME/.codex/ping-me.env"
+  else
+    CONFIG_FILE="$HOME/.config/ping-me/ping-me.env"
+  fi
+fi
 if [ -f "$CONFIG_FILE" ]; then
   # shellcheck disable=SC1090
   . "$CONFIG_FILE"
 fi
 
-DEFAULT_TITLE="Codex done"
+agent_name="${PING_ME_AGENT_NAME:-Codex}"
+DEFAULT_TITLE="$agent_name done"
 title="$DEFAULT_TITLE"
+title_explicit=0
 message=""
 status="success"
 transport="${PING_ME_TRANSPORT:-auto}"
@@ -33,6 +44,7 @@ Options:
   --title TEXT          Notification title.
   --message TEXT        Notification body.
   --status STATUS       success, failure, blocked, or neutral.
+  --agent NAME          Label for default titles, e.g. Codex or Claude.
   --transport NAME      auto, pushover, ntfy, imessage, or macos.
   --min-idle SECONDS    Suppress unless Mac has been idle this long.
   --pid PID             Wait for PID to exit, then notify.
@@ -99,6 +111,7 @@ while [ "$#" -gt 0 ]; do
     --title)
       [ "$#" -ge 2 ] || die "--title requires a value"
       title="$2"
+      title_explicit=1
       shift 2
       ;;
     --message)
@@ -109,6 +122,15 @@ while [ "$#" -gt 0 ]; do
     --status)
       [ "$#" -ge 2 ] || die "--status requires a value"
       status="$2"
+      shift 2
+      ;;
+    --agent)
+      [ "$#" -ge 2 ] || die "--agent requires a value"
+      agent_name="$2"
+      DEFAULT_TITLE="$agent_name done"
+      if [ "$title_explicit" -eq 0 ]; then
+        title="$DEFAULT_TITLE"
+      fi
       shift 2
       ;;
     --transport)
@@ -206,9 +228,9 @@ fi
 
 if [ "$title" = "$DEFAULT_TITLE" ]; then
   case "$status" in
-    success) title="Codex done" ;;
-    failure) title="Codex failure" ;;
-    blocked) title="Codex blocked" ;;
+    success) title="$agent_name done" ;;
+    failure) title="$agent_name failure" ;;
+    blocked) title="$agent_name blocked" ;;
   esac
 fi
 

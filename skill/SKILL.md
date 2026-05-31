@@ -25,6 +25,7 @@ Use this skill as a one-shot completion ping for the current task only. Do not n
 "$HOME/.codex/skills/ping-me/scripts/ping_me.sh" \
   --force \
   --caffeinate-stop \
+  --agent Codex \
   --message "The requested task finished." \
   --status success
 ```
@@ -47,6 +48,7 @@ For a single long shell command, the wrapper can manage caffeinate and notificat
 "$HOME/.codex/skills/ping-me/scripts/ping_me.sh" \
   --force \
   --caffeinate \
+  --agent Codex \
   -- make test
 ```
 
@@ -80,18 +82,18 @@ The macOS fallback is useful on the laptop but is not a reliable Apple Watch not
 Dry-run without sending:
 
 ```bash
-"$HOME/.codex/skills/ping-me/scripts/ping_me.sh" --force --dry-run --message "Test ping"
+"$HOME/.codex/skills/ping-me/scripts/ping_me.sh" --force --agent Codex --dry-run --message "Test ping"
 ```
 
 Wrap an arbitrary command and preserve its exit status:
 
 ```bash
-"$HOME/.codex/skills/ping-me/scripts/ping_me.sh" --force --caffeinate -- make test
+"$HOME/.codex/skills/ping-me/scripts/ping_me.sh" --force --caffeinate --agent Codex -- make test
 ```
 
 Wait for a known PID:
 
 ```bash
 "$HOME/.codex/skills/ping-me/scripts/caffeinate_guard.sh" start
-"$HOME/.codex/skills/ping-me/scripts/ping_me.sh" --force --caffeinate-stop --pid 12345 --message "Process 12345 finished"
+"$HOME/.codex/skills/ping-me/scripts/ping_me.sh" --force --caffeinate-stop --agent Codex --pid 12345 --message "Process 12345 finished"
 ```
