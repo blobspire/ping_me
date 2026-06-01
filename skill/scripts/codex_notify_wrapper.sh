@@ -29,11 +29,12 @@ if [ -n "$scope" ] && PING_ME_CODEX_NOTIFY_HOOK=1 "$SCRIPT_DIR/ping_me_request.s
       >/dev/null 2>&1 || true
   else
     PING_ME_CODEX_NOTIFY_HOOK=1 \
-      /usr/bin/nohup "$SCRIPT_DIR/ping_me_request.sh" complete \
+      "$SCRIPT_DIR/ping_me_request.sh" complete \
         --agent Codex \
         --scope "$scope" \
         --quiet \
-      >/dev/null 2>&1 &
+        --background \
+      >/dev/null 2>&1 || true
   fi
 fi
 

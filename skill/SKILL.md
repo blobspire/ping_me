@@ -35,15 +35,16 @@ If the intent is ambiguous, do not use the skill.
 ```
 
 2. Finish the user's actual task. Do not let the notification workflow replace or shorten the requested work.
-3. If the arm command printed `completion=manual`, complete the armed request at the end:
+3. At the end, schedule completion in the background:
 
 ```bash
 "$HOME/.codex/skills/ping-me/scripts/ping_me_request.sh" complete \
   --agent Codex \
-  --status success
+  --status success \
+  --background
 ```
 
-If the arm command printed `completion=hook`, do not send a manual notification; the Codex notify hook owns completion. If the task fails or becomes blocked in hook mode, mark the armed request before ending:
+If the Codex notify hook completes the request first, this command no-ops. If the final command runs first, the hook no-ops. If the task fails or becomes blocked, mark the armed request before completing:
 
 ```bash
 "$HOME/.codex/skills/ping-me/scripts/ping_me_request.sh" mark \

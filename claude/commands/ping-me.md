@@ -20,7 +20,8 @@ When the task succeeds, run:
 ```bash
 "$HOME/.local/share/ping-me/scripts/ping_me_request.sh" complete \
   --agent Claude \
-  --status success
+  --status success \
+  --background
 ```
 
 If the task fails, use `--status failure` and a short message describing the failed step.

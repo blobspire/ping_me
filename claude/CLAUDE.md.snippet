@@ -5,7 +5,7 @@ When I directly ask Claude Code to notify me after Claude's current task finishe
 
 1. Immediately run `"$HOME/.local/share/ping-me/scripts/ping_me_request.sh" arm --agent Claude --message "The requested task finished."`.
 2. Finish the current task.
-3. At the end, run `"$HOME/.local/share/ping-me/scripts/ping_me_request.sh" complete --agent Claude --status success`.
+3. At the end, run `"$HOME/.local/share/ping-me/scripts/ping_me_request.sh" complete --agent Claude --status success --background`.
 4. Use `--status failure` if the task failed and `--status blocked` if the task cannot continue without user input or an external change.
 5. Keep the notification message short and do not include secrets, command output, file contents, tokens, or large logs.
 

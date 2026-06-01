@@ -29,6 +29,7 @@ request_scope=""
 scope_explicit=0
 quiet=0
 dry_run=0
+background=0
 
 usage() {
   cat <<'USAGE'
@@ -48,6 +49,7 @@ Options:
   --scope SCOPE      Scope requests to a session or task id.
   --quiet            Suppress "nothing to do" messages.
   --dry-run          Do not send notifications; useful for tests.
+  --background       For complete, finish in a detached process.
   --help             Show this help.
 USAGE
 }
@@ -99,6 +101,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --dry-run)
       dry_run=1
+      shift
+      ;;
+    --background|--detach)
+      background=1
       shift
       ;;
     --help|-h)
@@ -301,10 +307,56 @@ pending_request() {
   return 1
 }
 
+acquire_request_claim() {
+  path="$1"
+  claim_dir="$path/claim.lock"
+
+  if /bin/mkdir "$claim_dir" 2>/dev/null; then
+    printf '%s\n' "$$" > "$claim_dir/pid"
+    return 0
+  fi
+
+  claim_pid="$(/bin/cat "$claim_dir/pid" 2>/dev/null | /usr/bin/awk 'NR == 1 { print $1 }')"
+  if [ -n "$claim_pid" ] && ! kill -0 "$claim_pid" 2>/dev/null; then
+    /bin/rm -rf "$claim_dir"
+    if /bin/mkdir "$claim_dir" 2>/dev/null; then
+      printf '%s\n' "$$" > "$claim_dir/pid"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+complete_in_background() {
+  cmd=("$SCRIPT_DIR/ping_me_request.sh" complete --quiet)
+  [ -n "$agent_name" ] && cmd+=(--agent "$agent_name")
+  scope="$(current_scope)"
+  [ -n "$scope" ] && cmd+=(--scope "$scope")
+  [ -n "$request_id" ] && cmd+=(--id "$request_id")
+  [ "$status_explicit" -eq 1 ] && cmd+=(--status "$status")
+  [ "$message_explicit" -eq 1 ] && cmd+=(--message "$message")
+  [ "$dry_run" -eq 1 ] && cmd+=(--dry-run)
+
+  PING_ME_CODEX_NOTIFY_HOOK="${PING_ME_CODEX_NOTIFY_HOOK:-0}" \
+    /usr/bin/nohup "${cmd[@]}" >/dev/null 2>&1 &
+}
+
 complete_request() {
+  if [ "$background" -eq 1 ]; then
+    complete_in_background
+    return 0
+  fi
+
   path="$(find_request_path || true)"
   if [ -z "${path:-}" ]; then
     [ "$quiet" -eq 1 ] || printf 'ping-me: no armed request; nothing to complete.\n' >&2
+    return 0
+  fi
+
+  claim_dir="$path/claim.lock"
+  if ! acquire_request_claim "$path"; then
+    [ "$quiet" -eq 1 ] || printf 'ping-me: request is already being completed.\n' >&2
     return 0
   fi
 
@@ -335,6 +387,8 @@ complete_request() {
   if [ "$notify_status" -eq 0 ]; then
     /bin/rm -rf "$path"
     stop_guard_if_idle
+  else
+    /bin/rm -rf "$claim_dir"
   fi
   return "$notify_status"
 }

@@ -108,7 +108,7 @@ Arm and complete the request-state flow directly:
 ```bash
 ~/.local/share/ping-me/scripts/ping_me_request.sh arm --agent Codex
 ~/.local/share/ping-me/scripts/ping_me_request.sh mark --agent Codex --status blocked --message "Waiting on user input."
-~/.local/share/ping-me/scripts/ping_me_request.sh complete --agent Codex --status success
+~/.local/share/ping-me/scripts/ping_me_request.sh complete --agent Codex --status success --background
 ```
 
 ## Optional Codex Hook Mode
@@ -137,7 +137,7 @@ If you do not have an existing notify command:
 notify = ["/Users/YOU/.local/share/ping-me/scripts/codex_notify_wrapper.sh"]
 ```
 
-The wrapper is gated by the armed request state, so it does only a cheap pending check on ordinary turns. Codex requests are scoped to `CODEX_THREAD_ID`, so one Codex session will not complete another session's pending ping. It completes at most one pending Codex ping after a turn in a detached background process, so a slow notification transport does not delay Codex. Existing notify behavior is preserved when you pass the previous notify command as wrapper arguments. If a hook-backed task fails or becomes blocked, the skill records that status with `ping_me_request.sh mark` before the turn ends so the hook sends `Codex failure` or `Codex blocked`.
+The wrapper is gated by the armed request state, so it does only a cheap pending check on ordinary turns. Codex requests are scoped to `CODEX_THREAD_ID`, so one Codex session will not complete another session's pending ping. Completion is claim-locked and runs in a detached background process, so a slow notification transport does not delay Codex and duplicate hook/manual completions do not send duplicate notifications. Existing notify behavior is preserved when you pass the previous notify command as wrapper arguments. If a hook-backed task fails or becomes blocked, the skill records that status with `ping_me_request.sh mark` before the turn ends so the completion sends `Codex failure` or `Codex blocked`.
 
 ## Configure
 
