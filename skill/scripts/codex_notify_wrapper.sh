@@ -3,10 +3,11 @@ set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 previous_status=0
-dry_run_args=()
+dry_run="${PING_ME_DRY_RUN:-0}"
+scope="${PING_ME_SCOPE:-}"
 
-if [ "${PING_ME_DRY_RUN:-0}" = "1" ]; then
-  dry_run_args=(--dry-run)
+if [ -z "$scope" ] && [ -n "${CODEX_THREAD_ID:-}" ]; then
+  scope="codex:$CODEX_THREAD_ID"
 fi
 
 if [ "$#" -gt 0 ]; then
@@ -17,11 +18,21 @@ if [ "$#" -gt 0 ]; then
   fi
 fi
 
-PING_ME_CODEX_NOTIFY_HOOK=1 \
-"$SCRIPT_DIR/ping_me_request.sh" complete \
-    --agent Codex \
-    --quiet \
-    "${dry_run_args[@]}" \
-  >/dev/null 2>&1 || true
+if [ -n "$scope" ] && [ "$dry_run" = "1" ]; then
+  PING_ME_CODEX_NOTIFY_HOOK=1 \
+    "$SCRIPT_DIR/ping_me_request.sh" complete \
+      --agent Codex \
+      --scope "$scope" \
+      --quiet \
+      --dry-run \
+    >/dev/null 2>&1 || true
+elif [ -n "$scope" ]; then
+  PING_ME_CODEX_NOTIFY_HOOK=1 \
+    "$SCRIPT_DIR/ping_me_request.sh" complete \
+      --agent Codex \
+      --scope "$scope" \
+      --quiet \
+    >/dev/null 2>&1 || true
+fi
 
 exit "$previous_status"

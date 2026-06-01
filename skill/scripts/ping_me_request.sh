@@ -25,6 +25,8 @@ message_explicit=0
 status="success"
 status_explicit=0
 request_id=""
+request_scope=""
+scope_explicit=0
 quiet=0
 dry_run=0
 
@@ -42,6 +44,7 @@ Options:
   --message TEXT     Completion notification body.
   --status STATUS    success, failure, or blocked.
   --id ID            Complete or cancel a specific request.
+  --scope SCOPE      Scope requests to a session or task id.
   --quiet            Suppress "nothing to do" messages.
   --dry-run          Do not send notifications; useful for tests.
   --help             Show this help.
@@ -83,6 +86,12 @@ while [ "$#" -gt 0 ]; do
       request_id="$2"
       shift 2
       ;;
+    --scope)
+      [ "$#" -ge 2 ] || die "--scope requires a value"
+      request_scope="$2"
+      scope_explicit=1
+      shift 2
+      ;;
     --quiet)
       quiet=1
       shift
@@ -110,6 +119,28 @@ safe_agent() {
   printf '%s\n' "${1:-Codex}" | /usr/bin/tr -cd '[:alnum:]_.-'
 }
 
+safe_scope() {
+  printf '%s\n' "$1" | /usr/bin/tr -cd '[:alnum:]_.:-'
+}
+
+current_scope() {
+  if [ "$scope_explicit" -eq 1 ]; then
+    safe_scope "$request_scope"
+    return 0
+  fi
+  if [ -n "${PING_ME_SCOPE:-}" ]; then
+    safe_scope "$PING_ME_SCOPE"
+    return 0
+  fi
+  case "$(printf '%s\n' "${agent_name:-Codex}" | /usr/bin/tr '[:upper:]' '[:lower:]')" in
+    codex)
+      if [ -n "${CODEX_THREAD_ID:-}" ]; then
+        safe_scope "codex:$CODEX_THREAD_ID"
+      fi
+      ;;
+  esac
+}
+
 new_id() {
   stamp="$(date -u '+%Y%m%dT%H%M%SZ')"
   if [ -r /dev/urandom ]; then
@@ -127,8 +158,9 @@ read_first_line() {
 }
 
 completion_mode() {
-  case "${agent_name:-Codex}:${PING_ME_CODEX_NOTIFY_HOOK:-0}" in
-    Codex:1|codex:1) printf 'hook' ;;
+  scope="$(current_scope)"
+  case "${agent_name:-Codex}:${PING_ME_CODEX_NOTIFY_HOOK:-0}:$scope" in
+    Codex:1:?*|codex:1:?*) printf 'hook' ;;
     *) printf 'manual' ;;
   esac
 }
@@ -144,12 +176,19 @@ request_path_for_id() {
 
 latest_request_path() {
   filter_agent="$(safe_agent "${agent_name:-}")"
+  filter_scope="$(current_scope)"
   latest=""
   for dir in "$REQUEST_DIR"/*; do
     [ -d "$dir" ] || continue
     if [ -n "$filter_agent" ]; then
       dir_agent="$(read_first_line "$dir/agent" 2>/dev/null || true)"
       [ "$dir_agent" = "$filter_agent" ] || continue
+    fi
+    dir_scope="$(read_first_line "$dir/scope" 2>/dev/null || true)"
+    if [ -n "$filter_scope" ]; then
+      [ "$dir_scope" = "$filter_scope" ] || continue
+    elif [ -n "$dir_scope" ]; then
+      continue
     fi
     latest="$dir"
   done
@@ -198,6 +237,10 @@ arm_request() {
   /bin/rm -rf "$tmp_path"
   /bin/mkdir "$tmp_path" || exit 1
   printf '%s\n' "$agent_name" > "$tmp_path/agent"
+  scope="$(current_scope)"
+  if [ -n "$scope" ]; then
+    printf '%s\n' "$scope" > "$tmp_path/scope"
+  fi
   printf '%s\n' "$message" > "$tmp_path/message"
   date -u '+%Y-%m-%dT%H:%M:%SZ' > "$tmp_path/created_at"
   printf 'success\n' > "$tmp_path/status"
@@ -279,8 +322,9 @@ list_requests() {
     [ -d "$dir" ] || continue
     id="$(/usr/bin/basename "$dir")"
     req_agent="$(read_first_line "$dir/agent" 2>/dev/null || true)"
+    req_scope="$(read_first_line "$dir/scope" 2>/dev/null || true)"
     created_at="$(read_first_line "$dir/created_at" 2>/dev/null || true)"
-    printf '%s\t%s\t%s\n' "$id" "${req_agent:-unknown}" "${created_at:-unknown}"
+    printf '%s\t%s\t%s\t%s\n' "$id" "${req_agent:-unknown}" "${req_scope:-unscoped}" "${created_at:-unknown}"
   done
 }
 

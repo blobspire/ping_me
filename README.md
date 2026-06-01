@@ -137,7 +137,7 @@ If you do not have an existing notify command:
 notify = ["/Users/YOU/.local/share/ping-me/scripts/codex_notify_wrapper.sh"]
 ```
 
-The wrapper is gated by the armed request state, so it does nothing on ordinary turns. It completes at most one pending Codex ping after a turn and leaves existing notify behavior intact when you pass the previous notify command as wrapper arguments. If a hook-backed task fails or becomes blocked, the skill records that status with `ping_me_request.sh mark` before the turn ends so the hook sends `Codex failure` or `Codex blocked`.
+The wrapper is gated by the armed request state, so it does nothing on ordinary turns. Codex requests are scoped to `CODEX_THREAD_ID`, so one Codex session will not complete another session's pending ping. It completes at most one pending Codex ping after a turn and leaves existing notify behavior intact when you pass the previous notify command as wrapper arguments. If a hook-backed task fails or becomes blocked, the skill records that status with `ping_me_request.sh mark` before the turn ends so the hook sends `Codex failure` or `Codex blocked`.
 
 ## Configure
 
