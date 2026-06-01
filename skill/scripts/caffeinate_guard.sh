@@ -16,6 +16,7 @@ fi
 
 STATE_DIR="${PING_ME_STATE_DIR:-$HOME/.local/state/ping-me}"
 PID_FILE="${PING_ME_CAFFEINATE_PID_FILE:-$STATE_DIR/caffeinate.pid}"
+LOCK_DIR="$STATE_DIR/caffeinate.lock"
 CAFFEINATE_ARGS="${PING_ME_CAFFEINATE_ARGS:--dims}"
 CAFFEINATE_TIMEOUT_SECONDS="${PING_ME_CAFFEINATE_TIMEOUT_SECONDS:-90000}"
 
@@ -43,8 +44,32 @@ read_pid() {
   /bin/cat "$PID_FILE" 2>/dev/null | /usr/bin/awk 'NR == 1 { print $1 }'
 }
 
-start_guard() {
+release_lock() {
+  /bin/rm -rf "$LOCK_DIR" 2>/dev/null || true
+}
+
+acquire_lock() {
   /bin/mkdir -p "$STATE_DIR"
+  attempts=0
+  while ! /bin/mkdir "$LOCK_DIR" 2>/dev/null; do
+    lock_pid="$(/bin/cat "$LOCK_DIR/pid" 2>/dev/null | /usr/bin/awk 'NR == 1 { print $1 }')"
+    if [ -n "$lock_pid" ] && ! kill -0 "$lock_pid" 2>/dev/null; then
+      /bin/rm -rf "$LOCK_DIR"
+      continue
+    fi
+    attempts=$((attempts + 1))
+    if [ "$attempts" -ge 50 ]; then
+      printf 'ping-me: timed out waiting for caffeinate guard lock.\n' >&2
+      return 75
+    fi
+    sleep 0.1
+  done
+  printf '%s\n' "$$" > "$LOCK_DIR/pid"
+  trap release_lock EXIT INT TERM
+}
+
+start_guard() {
+  acquire_lock || return $?
 
   existing_pid="$(read_pid || true)"
   if is_caffeinate_pid "$existing_pid"; then
@@ -76,6 +101,8 @@ start_guard() {
 }
 
 stop_guard() {
+  acquire_lock || return $?
+
   existing_pid="$(read_pid || true)"
   if is_caffeinate_pid "$existing_pid"; then
     kill "$existing_pid" 2>/dev/null || true

@@ -35,6 +35,7 @@ usage() {
 Usage:
   ping_me_request.sh arm [options]
   ping_me_request.sh mark [options]
+  ping_me_request.sh pending [options]
   ping_me_request.sh complete [options]
   ping_me_request.sh cancel [options]
   ping_me_request.sh list
@@ -57,7 +58,7 @@ die() {
 }
 
 case "$action" in
-  arm|mark|complete|cancel|list|status) shift ;;
+  arm|mark|pending|complete|cancel|list|status) shift ;;
   --help|-h|help|'') usage; exit 0 ;;
   *) die "unknown action: $action" ;;
 esac
@@ -213,6 +214,28 @@ has_requests() {
   return 1
 }
 
+has_matching_request() {
+  path="$(find_request_path || true)"
+  [ -n "${path:-}" ]
+}
+
+remove_matching_requests() {
+  filter_agent="$1"
+  filter_scope="$2"
+  for dir in "$REQUEST_DIR"/*; do
+    [ -d "$dir" ] || continue
+    dir_agent="$(read_first_line "$dir/agent" 2>/dev/null || true)"
+    [ "$dir_agent" = "$filter_agent" ] || continue
+    dir_scope="$(read_first_line "$dir/scope" 2>/dev/null || true)"
+    if [ -n "$filter_scope" ]; then
+      [ "$dir_scope" = "$filter_scope" ] || continue
+    elif [ -n "$dir_scope" ]; then
+      continue
+    fi
+    /bin/rm -rf "$dir"
+  done
+}
+
 stop_guard_if_idle() {
   has_requests && return 0
   if [ -x "$SCRIPT_DIR/caffeinate_guard.sh" ]; then
@@ -231,13 +254,14 @@ arm_request() {
 
   umask 077
   /bin/mkdir -p "$REQUEST_DIR"
+  scope="$(current_scope)"
+  remove_matching_requests "$agent_name" "$scope"
   id="${request_id:-$(new_id)}"
   request_path="$(request_path_for_id "$id")" || die "invalid request id"
   tmp_path="$request_path.tmp.$$"
   /bin/rm -rf "$tmp_path"
   /bin/mkdir "$tmp_path" || exit 1
   printf '%s\n' "$agent_name" > "$tmp_path/agent"
-  scope="$(current_scope)"
   if [ -n "$scope" ]; then
     printf '%s\n' "$scope" > "$tmp_path/scope"
   fi
@@ -266,6 +290,15 @@ mark_request() {
   fi
 
   [ "$quiet" -eq 1 ] || printf 'ping-me: marked %s as %s\n' "$(/usr/bin/basename "$path")" "$status"
+}
+
+pending_request() {
+  if has_matching_request; then
+    [ "$quiet" -eq 1 ] || printf 'pending\n'
+    return 0
+  fi
+  [ "$quiet" -eq 1 ] || printf 'none\n'
+  return 1
 }
 
 complete_request() {
@@ -331,6 +364,7 @@ list_requests() {
 case "$action" in
   arm) arm_request ;;
   mark) mark_request ;;
+  pending) pending_request ;;
   complete) complete_request ;;
   cancel) cancel_request ;;
   list|status) list_requests ;;

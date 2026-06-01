@@ -18,21 +18,23 @@ if [ "$#" -gt 0 ]; then
   fi
 fi
 
-if [ -n "$scope" ] && [ "$dry_run" = "1" ]; then
-  PING_ME_CODEX_NOTIFY_HOOK=1 \
-    "$SCRIPT_DIR/ping_me_request.sh" complete \
-      --agent Codex \
-      --scope "$scope" \
-      --quiet \
-      --dry-run \
-    >/dev/null 2>&1 || true
-elif [ -n "$scope" ]; then
-  PING_ME_CODEX_NOTIFY_HOOK=1 \
-    "$SCRIPT_DIR/ping_me_request.sh" complete \
-      --agent Codex \
-      --scope "$scope" \
-      --quiet \
-    >/dev/null 2>&1 || true
+if [ -n "$scope" ] && PING_ME_CODEX_NOTIFY_HOOK=1 "$SCRIPT_DIR/ping_me_request.sh" pending --agent Codex --scope "$scope" --quiet >/dev/null 2>&1; then
+  if [ "$dry_run" = "1" ]; then
+    PING_ME_CODEX_NOTIFY_HOOK=1 \
+      "$SCRIPT_DIR/ping_me_request.sh" complete \
+        --agent Codex \
+        --scope "$scope" \
+        --quiet \
+        --dry-run \
+      >/dev/null 2>&1 || true
+  else
+    PING_ME_CODEX_NOTIFY_HOOK=1 \
+      /usr/bin/nohup "$SCRIPT_DIR/ping_me_request.sh" complete \
+        --agent Codex \
+        --scope "$scope" \
+        --quiet \
+      >/dev/null 2>&1 &
+  fi
 fi
 
 exit "$previous_status"
