@@ -16,6 +16,7 @@ BIN_DEST="$HOME/.local/bin/ping-me"
 install_codex=1
 install_claude=1
 install_claude_memory=0
+install_claude_hook=0
 
 usage() {
   cat <<'USAGE'
@@ -26,6 +27,7 @@ Options:
   --codex           Install only the Codex skill.
   --claude          Install only the Claude Code slash command.
   --claude-memory   Also append natural-language "ping me" guidance to ~/.claude/CLAUDE.md.
+  --claude-hook     Also wire a Claude Code Stop hook so pings complete automatically.
   --help            Show this help.
 USAGE
 }
@@ -50,6 +52,11 @@ while [ "$#" -gt 0 ]; do
     --claude-memory)
       install_claude=1
       install_claude_memory=1
+      shift
+      ;;
+    --claude-hook)
+      install_claude=1
+      install_claude_hook=1
       shift
       ;;
     --help|-h)
@@ -116,6 +123,63 @@ install_claude_memory_snippet() {
   printf 'Added Claude natural-language guidance: %s\n' "$CLAUDE_MEMORY_DEST"
 }
 
+install_claude_stop_hook() {
+  settings="$HOME/.claude/settings.json"
+  hook_cmd="$SCRIPT_DEST/claude_stop_hook.sh"
+
+  mkdir -p "$(dirname "$settings")"
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    printf 'python3 not found; cannot auto-wire the Claude Stop hook.\n' >&2
+    printf 'Add a Stop hook in %s that runs: %s\n' "$settings" "$hook_cmd" >&2
+    return 0
+  fi
+
+  PING_ME_SETTINGS="$settings" PING_ME_HOOK_CMD="$hook_cmd" python3 - <<'PY'
+import json, os, sys
+
+settings = os.environ["PING_ME_SETTINGS"]
+cmd = os.environ["PING_ME_HOOK_CMD"]
+
+try:
+    with open(settings) as f:
+        data = json.load(f)
+except FileNotFoundError:
+    data = {}
+except json.JSONDecodeError:
+    sys.stderr.write("ping-me: %s is not valid JSON; leaving it unchanged.\n" % settings)
+    sys.exit(0)
+
+if not isinstance(data, dict):
+    sys.stderr.write("ping-me: %s is not a JSON object; leaving it unchanged.\n" % settings)
+    sys.exit(0)
+
+hooks = data.setdefault("hooks", {})
+if not isinstance(hooks, dict):
+    sys.stderr.write("ping-me: hooks in %s is not an object; leaving it unchanged.\n" % settings)
+    sys.exit(0)
+stop = hooks.setdefault("Stop", [])
+if not isinstance(stop, list):
+    sys.stderr.write("ping-me: hooks.Stop in %s is not a list; leaving it unchanged.\n" % settings)
+    sys.exit(0)
+
+for group in stop:
+    if isinstance(group, dict):
+        for h in group.get("hooks", []):
+            if isinstance(h, dict) and str(h.get("command", "")).endswith("claude_stop_hook.sh"):
+                print("Claude Stop hook already configured: %s" % settings)
+                sys.exit(0)
+
+stop.append({"hooks": [{"type": "command", "command": cmd}]})
+tmp = settings + ".ping-me.tmp"
+with open(tmp, "w") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+os.replace(tmp, settings)
+print("Wired Claude Stop hook into %s" % settings)
+PY
+}
+
 install_config() {
   mkdir -p "$(dirname "$CONFIG_DEST")"
 
@@ -152,6 +216,10 @@ fi
 
 if [ "$install_claude_memory" -eq 1 ]; then
   install_claude_memory_snippet
+fi
+
+if [ "$install_claude_hook" -eq 1 ]; then
+  install_claude_stop_hook
 fi
 
 printf '\nInstalled ping-me.\n'

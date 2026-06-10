@@ -26,13 +26,15 @@ If the intent is ambiguous, do not use the skill.
 
 ## Workflow
 
-1. As soon as the ping request is received, arm the request:
+1. As soon as the ping request is received, arm the request with a short message that names the user's task. In the default hook-backed mode the completion reads this stored message, so set a specific one now while the task is fresh:
 
 ```bash
 "$HOME/.codex/skills/ping-me/scripts/ping_me_request.sh" arm \
   --agent Codex \
-  --message "The requested task finished."
+  --message "Test suite run finished."
 ```
+
+Replace the message with one short line naming the actual task. Fall back to `The requested task finished.` only when the task is unclear.
 
 2. Finish the user's actual task. Do not let the notification workflow replace or shorten the requested work.
 3. At the end, schedule completion in the background:

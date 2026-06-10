@@ -1,21 +1,24 @@
 ---
 description: Keep the Mac awake and notify when the current Claude Code task finishes
 argument-hint: [optional task/reminder]
+disable-model-invocation: true
 ---
 
-Use ping-me as a one-shot completion ping for the current Claude Code task only.
+One-shot completion ping for the current Claude Code task. This runs only when the user types `/ping-me`. Arming a ping never replaces or shortens the actual work.
 
-Immediately arm ping-me:
+1. Arm immediately with a short, specific message naming the task. This also starts the caffeinate wake guard, and the completion ping reuses this message, so make it descriptive:
 
 ```bash
 "$HOME/.local/share/ping-me/scripts/ping_me_request.sh" arm \
   --agent Claude \
-  --message "The requested task finished."
+  --message "Test suite run finished."
 ```
 
-If `$ARGUMENTS` describes work to do, do that work. If no arguments were provided, apply this to the current task already underway in the conversation.
+Replace the message with one short line naming the user's actual task.
 
-When the task succeeds, run:
+2. Do the task. If `$ARGUMENTS` names work to do, do that; otherwise apply this to the task already underway in the conversation. Complete it exactly as you normally would — do not skip, shorten, or rush any step because a ping is pending.
+
+3. When the task finishes, complete in the background (this reuses the armed message):
 
 ```bash
 "$HOME/.local/share/ping-me/scripts/ping_me_request.sh" complete \
@@ -24,8 +27,6 @@ When the task succeeds, run:
   --background
 ```
 
-If the task fails, use `--status failure` and a short message describing the failed step.
+If the task failed, add `--status failure --message "<short failed step>"`. If it is blocked because you need user input or an external change, add `--status blocked --message "<short blocker>"`.
 
-If the task becomes blocked because you need user input or an external change, use `--status blocked` and a short message describing the blocker.
-
-Do not include secrets, command output, file contents, tokens, or large logs in the notification message.
+If the optional Stop hook is installed, it completes the armed ping automatically when Claude stops — so the notification still arrives even if you do not reach step 3, and completion is claim-locked so only one ping is ever sent. Keep messages to one short line. Never include secrets, command output, file contents, tokens, or large logs.

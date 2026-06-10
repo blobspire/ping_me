@@ -1,14 +1,14 @@
 <!-- ping-me:start -->
 ## ping-me completion notifications
 
-When I directly ask Claude Code to notify me after Claude's current task finishes, such as "ping me", "notify me when done", "run tests, then ping me", or similar:
+Trigger this ONLY when the user's message is itself a direct, standalone request for Claude to notify them when Claude's current task finishes — for example "ping me", "notify me when done", or "run tests, then ping me". The intent must be to be notified about THIS conversation's task. Never trigger because notification words like "ping", "notify", or "alert" appear inside product requirements, app behavior, code, documentation, tests, examples, or a file you are editing. Example that must NOT trigger: "I'm building a walkie-talkie app and I want it to ping me when I lose connection." If the intent is ambiguous, do not trigger.
 
-1. Immediately run `"$HOME/.local/share/ping-me/scripts/ping_me_request.sh" arm --agent Claude --message "The requested task finished."`.
-2. Finish the current task.
+When it does apply:
+
+1. Immediately arm with a short, specific message naming the task (this also starts the caffeinate wake guard, and the completion reuses this message): `"$HOME/.local/share/ping-me/scripts/ping_me_request.sh" arm --agent Claude --message "<one short line naming the task>"`.
+2. Finish the current task exactly as you normally would. Do not skip, shorten, or rush any step because a ping is pending.
 3. At the end, run `"$HOME/.local/share/ping-me/scripts/ping_me_request.sh" complete --agent Claude --status success --background`.
-4. Use `--status failure` if the task failed and `--status blocked` if the task cannot continue without user input or an external change.
-5. Keep the notification message short and do not include secrets, command output, file contents, tokens, or large logs.
-
-Do not treat notification language as a ping-me request when it is part of product requirements, app behavior, code, documentation, tests, or examples. For example, do not trigger ping-me for: "I'm building a walkie talkie app and I want it to ping me when I lose connection."
+4. Add `--status failure --message "<short reason>"` if the task failed, or `--status blocked --message "<short blocker>"` if it cannot continue without user input or an external change.
+5. Keep the message to one line; never include secrets, command output, file contents, tokens, or large logs.
 
 <!-- ping-me:end -->

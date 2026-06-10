@@ -145,6 +145,11 @@ current_scope() {
         safe_scope "codex:$CODEX_THREAD_ID"
       fi
       ;;
+    claude)
+      if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then
+        safe_scope "claude:$CLAUDE_CODE_SESSION_ID"
+      fi
+      ;;
   esac
 }
 
@@ -220,6 +225,18 @@ has_requests() {
   return 1
 }
 
+reap_stale_requests() {
+  [ -d "$REQUEST_DIR" ] || return 0
+  max_age="${PING_ME_REQUEST_MAX_AGE_MINUTES:-1560}"
+  case "$max_age" in
+    ''|*[!0-9]*|0) return 0 ;;
+  esac
+  for dir in $(/usr/bin/find "$REQUEST_DIR" -mindepth 1 -maxdepth 1 -type d -mmin +"$max_age" 2>/dev/null); do
+    [ -n "$dir" ] || continue
+    /bin/rm -rf "$dir"
+  done
+}
+
 has_matching_request() {
   path="$(find_request_path || true)"
   [ -n "${path:-}" ]
@@ -243,6 +260,7 @@ remove_matching_requests() {
 }
 
 stop_guard_if_idle() {
+  reap_stale_requests
   has_requests && return 0
   if [ -x "$SCRIPT_DIR/caffeinate_guard.sh" ]; then
     PING_ME_STATE_DIR="$STATE_DIR" "$SCRIPT_DIR/caffeinate_guard.sh" stop >&2 || true
@@ -260,6 +278,7 @@ arm_request() {
 
   umask 077
   /bin/mkdir -p "$REQUEST_DIR"
+  reap_stale_requests
   scope="$(current_scope)"
   remove_matching_requests "$agent_name" "$scope"
   id="${request_id:-$(new_id)}"

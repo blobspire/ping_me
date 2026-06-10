@@ -40,6 +40,16 @@ For Claude Code, `/ping-me` works immediately after install. To also make natura
 
 Claude Code loads user memory when a session starts, so restart Claude Code after adding the optional memory snippet.
 
+`/ping-me` is user-invoked only: it carries `disable-model-invocation: true`, so Claude never auto-triggers it and never even sees it in its skill list. It runs only when you type `/ping-me`. This is the recommended, no-surprises mode. The optional `--claude-memory` snippet enables natural-language "ping me" by adding always-on guidance to `~/.claude/CLAUDE.md`; that convenience carries a small risk that the model occasionally reads unrelated notification wording as a request, so install it only if you want natural-language triggering.
+
+To make completion fully automatic and reliable, install the optional Stop hook:
+
+```bash
+./install.sh --claude --claude-hook
+```
+
+With the hook installed, the ping completes on its own when Claude stops, even if the model never runs the explicit completion step. Requests are scoped per Claude session (`CLAUDE_CODE_SESSION_ID`), so multiple concurrent Claude Code sessions — including separate worktrees, repos, and branches — each notify independently and never complete one another's pings. The machine-wide wake guard stays up until the last running session's task finishes. Completion is claim-locked, so the hook and the explicit step together still send exactly one notification. The hook only acts when the current session has an armed ping; on every other turn it is a cheap no-op.
+
 ## Codex Use
 
 During a Codex task, say:
@@ -74,7 +84,7 @@ You can also pass a task reminder:
 /ping-me run the test suite and tell me when it finishes
 ```
 
-The command arms the same background `caffeinate` guard. When the task finishes, Claude sends one notification and stops the guard.
+The command arms the same background `caffeinate` guard. When the task finishes, Claude sends one notification and stops the guard. The notification body is a short, task-specific summary of what finished, so a glance at your watch tells you which task completed.
 
 Notification titles:
 
@@ -155,6 +165,7 @@ PING_ME_NTFY_TOPIC=your-private-random-topic
 PING_ME_CAFFEINATE_ARGS=-dims
 PING_ME_CAFFEINATE_TIMEOUT_SECONDS=90000
 PING_ME_STATE_DIR=$HOME/.local/state/ping-me
+PING_ME_REQUEST_MAX_AGE_MINUTES=1560
 PING_ME_AGENT_NAME=Codex
 PING_ME_CODEX_NOTIFY_HOOK=0
 ```
