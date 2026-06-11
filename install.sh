@@ -184,19 +184,26 @@ install_config() {
   mkdir -p "$(dirname "$CONFIG_DEST")"
 
   if [ -f "$CONFIG_DEST" ]; then
+    # The config can hold ntfy/Pushover credentials, so keep it private even
+    # if an earlier install left it world-readable.
+    chmod 600 "$CONFIG_DEST" 2>/dev/null || true
     printf 'Keeping existing config: %s\n' "$CONFIG_DEST"
     return 0
   fi
 
   if [ -f "$LEGACY_CODEX_CONFIG" ]; then
     cp "$LEGACY_CODEX_CONFIG" "$CONFIG_DEST"
+    chmod 600 "$CONFIG_DEST"
     printf 'Copied existing Codex config to: %s\n' "$CONFIG_DEST"
     return 0
   fi
 
   topic="$(random_topic)"
-  sed "s/replace-with-your-private-random-topic/$topic/g" \
-    "$REPO_DIR/ping-me.env.example" > "$CONFIG_DEST"
+  # umask 077 so the file is never briefly world-readable while the topic is
+  # written; chmod 600 afterward makes the private mode explicit.
+  (umask 077; sed "s/replace-with-your-private-random-topic/$topic/g" \
+    "$REPO_DIR/ping-me.env.example" > "$CONFIG_DEST")
+  chmod 600 "$CONFIG_DEST"
 
   printf 'Created config: %s\n' "$CONFIG_DEST"
   printf 'Subscribe to this ntfy topic in the iOS app:\n'
