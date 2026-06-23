@@ -1,6 +1,6 @@
 # ping_me
 
-`ping_me` adds completion pings for long-running agent CLI tasks on macOS. It supports Codex CLI through a Codex skill and Claude Code through a custom slash command. It arms a small local request state, keeps the Mac awake with `caffeinate` while the task runs, then sends one completion notification when the task succeeds, fails, or becomes blocked.
+`ping_me` adds completion pings for long-running agent CLI tasks. It is built for macOS but also runs on Linux and other Unix-like systems, keeping full notification functionality off macOS (see [Platform support](#platform-support)). It supports Codex CLI through a Codex skill and Claude Code through a custom slash command. It arms a small local request state, keeps the Mac awake with `caffeinate` while the task runs, then sends one completion notification when the task succeeds, fails, or becomes blocked.
 
 It is designed for Apple Watch delivery through ntfy, with Pushover, iMessage, and macOS local notification fallbacks also supported.
 
@@ -50,6 +50,18 @@ Completion is fully automatic by default: the installer wires a Claude Code Stop
 ```
 
 With the hook installed, requests are scoped per Claude session (`CLAUDE_CODE_SESSION_ID`), so multiple concurrent Claude Code sessions — including separate worktrees, repos, and branches — each notify independently and never complete one another's pings. The machine-wide wake guard stays up until the last running session's task finishes. Completion is claim-locked, so the hook and the explicit step together still send exactly one notification. The hook only acts when the current session has an armed ping; on every other turn it is a cheap no-op.
+
+## Platform support
+
+`ping_me` is built for macOS, but it runs on Linux and other Unix-like systems too. The notification core uses `curl` to reach ntfy or Pushover, which works anywhere, so completion pings keep their full functionality off macOS.
+
+The macOS-only pieces are detected at runtime and skipped gracefully — you never have to configure anything to disable them:
+
+- **`caffeinate` wake guard.** If `/usr/bin/caffeinate` is absent, the script prints a notice and continues without keeping the machine awake. Notifications are unaffected.
+- **Idle / screen-lock suppression.** The active-laptop check reads macOS `ioreg`; where that is unavailable it just notifies. The Codex skill and Claude command call the notifier with `--force` anyway, so this path is bypassed for normal use.
+- **iMessage and macOS local notifications.** These transports use `osascript` and only work on macOS. On other platforms use the cross-platform transports — `ntfy` (the default) or `pushover`.
+
+So off macOS you keep the completion notifications and lose only the macOS-specific sleep prevention and local-notification fallbacks.
 
 ## Codex Use
 
