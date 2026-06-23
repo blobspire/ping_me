@@ -18,6 +18,7 @@ The installer:
 - creates a `ping-me` command in `~/.local/bin`
 - copies the skill to `~/.codex/skills/ping-me`
 - copies the Claude Code command to `~/.claude/commands/ping-me.md`
+- wires a Claude Code Stop hook into `~/.claude/settings.json` so pings complete automatically (pass `--no-claude-hook` to skip)
 - creates `~/.config/ping-me/ping-me.env` if it does not already exist
 - generates a private random ntfy topic
 
@@ -42,13 +43,13 @@ Claude Code loads user memory when a session starts, so restart Claude Code afte
 
 `/ping-me` is user-invoked only: it carries `disable-model-invocation: true`, so Claude never auto-triggers it and never even sees it in its skill list. It runs only when you type `/ping-me`. This is the recommended, no-surprises mode. The optional `--claude-memory` snippet enables natural-language "ping me" by adding always-on guidance to `~/.claude/CLAUDE.md`; that convenience carries a small risk that the model occasionally reads unrelated notification wording as a request, so install it only if you want natural-language triggering.
 
-To make completion fully automatic and reliable, install the optional Stop hook:
+Completion is fully automatic by default: the installer wires a Claude Code Stop hook so the ping completes on its own when Claude stops, even if the model never runs the explicit completion step. This removes the failure mode where the model forgets the completion step, and it keeps per-turn model overhead low. Claude Code loads hooks when a session starts, so restart Claude Code after installing. If you would rather rely on the model running the explicit step, skip the hook:
 
 ```bash
-./install.sh --claude --claude-hook
+./install.sh --claude --no-claude-hook
 ```
 
-With the hook installed, the ping completes on its own when Claude stops, even if the model never runs the explicit completion step. Requests are scoped per Claude session (`CLAUDE_CODE_SESSION_ID`), so multiple concurrent Claude Code sessions — including separate worktrees, repos, and branches — each notify independently and never complete one another's pings. The machine-wide wake guard stays up until the last running session's task finishes. Completion is claim-locked, so the hook and the explicit step together still send exactly one notification. The hook only acts when the current session has an armed ping; on every other turn it is a cheap no-op.
+With the hook installed, requests are scoped per Claude session (`CLAUDE_CODE_SESSION_ID`), so multiple concurrent Claude Code sessions — including separate worktrees, repos, and branches — each notify independently and never complete one another's pings. The machine-wide wake guard stays up until the last running session's task finishes. Completion is claim-locked, so the hook and the explicit step together still send exactly one notification. The hook only acts when the current session has an armed ping; on every other turn it is a cheap no-op.
 
 ## Codex Use
 

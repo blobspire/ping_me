@@ -16,18 +16,19 @@ BIN_DEST="$HOME/.local/bin/ping-me"
 install_codex=1
 install_claude=1
 install_claude_memory=0
-install_claude_hook=0
+install_claude_hook=1
 
 usage() {
   cat <<'USAGE'
 Usage: ./install.sh [options]
 
 Options:
-  --all             Install Codex skill and Claude Code command (default).
+  --all             Install Codex skill and Claude Code integration (default).
   --codex           Install only the Codex skill.
-  --claude          Install only the Claude Code slash command.
+  --claude          Install only the Claude Code integration (command + Stop hook).
   --claude-memory   Also append natural-language "ping me" guidance to ~/.claude/CLAUDE.md.
-  --claude-hook     Also wire a Claude Code Stop hook so pings complete automatically.
+  --claude-hook     Wire the Claude Code Stop hook for automatic completion (default).
+  --no-claude-hook  Skip the Claude Code Stop hook.
   --help            Show this help.
 USAGE
 }
@@ -57,6 +58,10 @@ while [ "$#" -gt 0 ]; do
     --claude-hook)
       install_claude=1
       install_claude_hook=1
+      shift
+      ;;
+    --no-claude-hook)
+      install_claude_hook=0
       shift
       ;;
     --help|-h)
@@ -225,7 +230,7 @@ if [ "$install_claude_memory" -eq 1 ]; then
   install_claude_memory_snippet
 fi
 
-if [ "$install_claude_hook" -eq 1 ]; then
+if [ "$install_claude" -eq 1 ] && [ "$install_claude_hook" -eq 1 ]; then
   install_claude_stop_hook
 fi
 
