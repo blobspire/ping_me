@@ -172,6 +172,39 @@ PING_ME_CODEX_NOTIFY_HOOK=0
 
 The Codex skill and Claude command call the notifier with `--force`, so explicit ping requests notify even if you were recently active on the laptop. The idle threshold only applies to direct/manual script use without `--force`.
 
+## Why task-long caffeination matters
+
+Claude Code already runs `caffeinate` on macOS while it works (it even appears in the terminal title), so it is natural to assume a running agent can never idle-sleep the Mac. It can. The built-in inhibitor is a relay, not a continuous hold: the CLI spawns `caffeinate -i -t 300`, kills it after about four minutes, and spawns a replacement. Each handoff leaves a moment in which the system holds zero sleep assertions. While the display is on, powerd's own "display is on" assertion covers that moment. But once the display has been off longer than the idle-sleep timer, powerd is waiting to sleep the instant assertions reach zero — and the next handoff loses the race. The whole CLI process tree is then suspended mid-API-stream, the relay cannot restart itself from inside sleep, and the session wakes to:
+
+```text
+API Error: Connection closed mid-response. The response above may be incomplete.
+```
+
+A real `pmset -g log` trace of the failure (identifiers redacted; the replacement caffeinate was spawned in the same second as the old one died, and still lost):
+
+```text
+15:15:03  Assertions  PID <redacted>(caffeinate) ClientDied PreventUserIdleSystemSleep 00:04:00  [System: PrevIdle DeclUser kDisp]
+15:19:03  Assertions  PID <redacted>(caffeinate) ClientDied PreventUserIdleSystemSleep 00:03:59  [System: No Assertions]
+15:19:08  Sleep       Entering Sleep state due to 'Idle Sleep'
+15:23:55  DarkWake    DarkWake from Deep Idle [CDNP] ...
+16:48:25  Wake        DarkWake to FullWake ... due to UserActivity      <- asleep until a human returned
+```
+
+The same few-second loss repeated at every walk-away that day (another run: `16:08:44 [System: No Assertions]` → `16:08:50 Entering Sleep`). In practice the session survives at most one renewal cycle — about four minutes — after the display goes dark.
+
+The `ping_me` guard closes this by construction rather than by racing faster. `arm` starts one detached `caffeinate -dims` process that lives for the entire task and is killed only when the last armed request completes. One process means one continuous set of assertions, so there is no handoff to lose. The assertions are also strictly stronger than the built-in `-i`, and they stay held while the agent waits at a permission prompt or between turns — periods when the built-in relay is not running at all:
+
+```text
+$ ps -o args= -p <guard pid>
+/usr/bin/caffeinate -dims -t 90000
+
+$ pmset -g assertions        # all four held continuously by that one pid
+PreventUserIdleSystemSleep   "caffeinate command-line tool"
+PreventUserIdleDisplaySleep  "caffeinate command-line tool"
+PreventSystemSleep           "caffeinate command-line tool"
+PreventDiskIdle              "caffeinate command-line tool"
+```
+
 ## Notes
 
 `caffeinate` prevents normal macOS sleep while the task is running. It may not prevent sleep from closing the laptop lid, battery exhaustion, or forced shutdown. The background guard has a default 25 hour timeout so an interrupted agent does not keep the Mac awake indefinitely.
